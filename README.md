@@ -1,1 +1,1 @@
-# TMDB-scraper
+# IMDB-scraper
