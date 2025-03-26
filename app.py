@@ -95,6 +95,8 @@ def scrapeUpcomingProjects(actorId: str) -> list[str]:
     soup = BeautifulSoup(response.text, 'html.parser')
 
     upcomingProjectsDiv = soup.find('div', id='accordion-item-actor-upcoming-projects')
+    if not upcomingProjectsDiv:
+        upcomingProjectsDiv = soup.find('div', id='accordion-item-actress-upcoming-projects')
 
     if not upcomingProjectsDiv:
         return []
@@ -113,6 +115,7 @@ def scrapeUpcomingProjects(actorId: str) -> list[str]:
 
             roleList = div.find('ul')
             role = roleList.find('li').find('span')
+            roleText = ''
             if role:
                 roleText = role.get_text()
 
@@ -139,6 +142,8 @@ def scrapeActorCredits(actorId: str) -> list[str]:
     soup = BeautifulSoup(response.text, 'html.parser')
 
     creditsDiv = soup.find('div', id='accordion-item-actor-previous-projects')
+    if not creditsDiv:
+        creditsDiv = soup.find('div', id='accordion-item-actress-previous-projects')
 
     if not creditsDiv:
         return []
@@ -214,6 +219,9 @@ def scrapeShowRating(showId: str) -> str:
     soup = BeautifulSoup(response.text, 'html.parser')
 
     ratingSpan = soup.find('span', class_='sc-d541859f-1 imUuxf')
+    if not ratingSpan:
+        return "Invalid"
+    
     rating = ratingSpan.get_text()
 
     return rating
@@ -242,6 +250,10 @@ def scrapeShowCreators(showId: str) -> list[str]:
         list.append(creatorElement.get_text())
 
     return list
+
+
+def scrapeShowCast(showId: str) -> list[str]:
+    pass
 
 
 def printAList(l: list) -> None:
