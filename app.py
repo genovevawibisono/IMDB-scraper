@@ -253,7 +253,51 @@ def scrapeShowCreators(showId: str) -> list[str]:
 
 
 def scrapeShowCast(showId: str) -> list[str]:
-    pass
+    url = f'https://www.imdb.com/title/{showId}'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        print("Rating - Cannot access url:" + url)
+        return
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    castDiv = soup.find('div', class_='ipc-shoveler ipc-shoveler--base ipc-shoveler--page0 title-cast__grid')
+    castInnerDivs = castDiv.find_all('div', class_='sc-cd7dc4b7-5 intBIf')
+
+    cast = []
+
+    for castInnerDiv in castInnerDivs:
+        castElement = castInnerDiv.find('a', class_='sc-cd7dc4b7-1 kVdWAO')
+        castName = castElement.get_text()
+
+        cast.append(castName)
+
+    return cast
+
+def scrapeShowAbout(showId: str) -> str:
+    url = f'https://www.imdb.com/title/{showId}'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        print("Rating - Cannot access url:" + url)
+        return
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    showAbout = soup.find('span', class_='sc-42125d72-0 gKbnVu')
+    showAboutText = showAbout.get_text()
+
+    if showAboutText:
+        return showAboutText
+    else:
+        return None
 
 
 def printAList(l: list) -> None:
@@ -321,14 +365,22 @@ if __name__ == "__main__":
             print("Show / Movie ID:" + showId)
 
             print()
-
             rating = scrapeShowRating(showId)
             print("Rating:", rating)
+
+            print()
+            showAbout = scrapeShowAbout(showId)
+            print("About:", showAbout)
 
             print()
             creators = scrapeShowCreators(showId)
             print("Creators:")
             printAList(creators)
+
+            print()
+            castMembers = scrapeShowCast(showId)
+            print("Cast members:")
+            printAList(castMembers)
 
             print()
         
