@@ -125,6 +125,51 @@ def scrapeUpcomingProjects(actorId: str) -> list[str]:
     
     return None
 
+def scrapeActorCredits(actorId: str) -> list[str]:
+    url = f'https://www.imdb.com/name/{actorId}'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        print("Known for - Cannot access url:" + url)
+        return
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    creditsDiv = soup.find('div', id='accordion-item-actor-previous-projects')
+
+    if not creditsDiv:
+        return []
+    
+    creditsContent = creditsDiv.find('div', class_='ipc-accordion__item__content_inner accordion-content')
+    if creditsContent:
+        credits = creditsContent.find('ul', class_='ipc-metadata-list ipc-metadata-list--dividers-between ipc-metadata-list--base')
+        creditsList = credits.find_all('li', class_='ipc-metadata-list-summary-item ipc-metadata-list-summary-item--click sc-d5824c4f-2 dhiRpX')
+
+        actorCreditsList = []
+
+        for c in creditsList:
+            div = c.find('div', class_='ipc-metadata-list-summary-item__c').find('div', class_='ipc-metadata-list-summary-item__tc')
+            titleElement = div.find('a', class_='ipc-metadata-list-summary-item__t')
+            title = titleElement.get_text()
+
+            roleList = div.find('ul')
+            role = roleList.find('li').find('span')
+            roleText = ''
+            if role:
+                roleText = role.get_text()
+
+            if roleText != '':
+                actorCreditsList.append(f'Title: {title}\t Role: {roleText}')
+            else:
+                actorCreditsList.append(f'Title: {title}')
+        
+        return actorCreditsList
+    
+    return None
+
 def getShowId(name: str) -> str:
     formattedName = name.replace(' ', '+')
     url = f'https://www.imdb.com/find/?q={formattedName}&s=tt'
@@ -245,6 +290,14 @@ if __name__ == "__main__":
             else:
                 print("None")
 
+            print()
+            print("Previous credits:")
+            actorCredits = scrapeActorCredits(actorId)
+            if actorCredits:
+                printAList(actorCredits)
+            else:
+                print("None")
+            
             print()
         
         elif choice == "2":
