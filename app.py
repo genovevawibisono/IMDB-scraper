@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-import pandas as pd
 import requests
 import re
 import sys
@@ -95,26 +94,118 @@ def scrapeUpcomingProjects(actorId: str) -> list[str]:
     
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    upcomingProjectsDiv = soup.find('div', id='accordion-item-actor-upcoming-projects').find('div', class_='ipc-accordion__item__content_inner accordion-content')
-    if upcomingProjectsDiv:
-        upcomingProjects = upcomingProjectsDiv.find('ul', class_='ipc-metadata-list ipc-metadata-list--dividers-between date-unrel-credits-list ipc-metadata-list--base')
+    upcomingProjectsDiv = soup.find('div', id='accordion-item-actor-upcoming-projects')
+
+    if not upcomingProjectsDiv:
+        return []
+    
+    upcomingProjectsContent = upcomingProjectsDiv.find('div', class_='ipc-accordion__item__content_inner accordion-content')
+    if upcomingProjectsContent:
+        upcomingProjects = upcomingProjectsContent.find('ul', class_='ipc-metadata-list ipc-metadata-list--dividers-between date-unrel-credits-list ipc-metadata-list--base')
         upcomingProjectsList = upcomingProjects.find_all('li', class_='ipc-metadata-list-summary-item ipc-metadata-list-summary-item--click sc-ee772624-0 eCnPST unreleased-credit')
 
         ActorUpcomingProjectsList = []
 
         for u in upcomingProjectsList:
             div = u.find('div', class_='ipc-metadata-list-summary-item__c').find('div', class_='ipc-metadata-list-summary-item__tc')
-            title = div.find('a', class_='ipc-metadata-list-summary-item__t').get_text()
+            titleElement = div.find('a', class_='ipc-metadata-list-summary-item__t')
+            title = titleElement.get_text()
 
-            ActorUpcomingProjectsList.append(title)
+            roleList = div.find('ul')
+            role = roleList.find('li').find('span')
+            if role:
+                roleText = role.get_text()
+
+            if roleText:
+                ActorUpcomingProjectsList.append(f'Title: {title}\t Role: {roleText}')
+            else:
+                ActorUpcomingProjectsList.append(f'Title: {title}')
         
         return ActorUpcomingProjectsList
     
     return None
 
+def getShowId(name: str) -> str:
+    formattedName = name.replace(' ', '+')
+    url = f'https://www.imdb.com/find/?q={formattedName}&s=tt'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        print("Failed to access url", file=sys.stderr)
+        return None
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+    result = soup.find('a', href=re.compile(r'/title/(tt\d+)/'))
+
+    if not result:
+        print("Could not find the actor", file=sys.stderr)
+        return None
+    
+    showIdMatch = re.search(r'/title/(tt\d+)/', result['href'])
+
+    if not showIdMatch:
+        print("Could not extract IMDB data for" + name, file=sys.stderr)
+        return None
+    
+    showId = showIdMatch.group(1)
+
+    return showId
+
+def scrapeShowRating(showId: str) -> str:
+    url = f'https://www.imdb.com/title/{showId}'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        print("Rating - Cannot access url:" + url)
+        return
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    ratingSpan = soup.find('span', class_='sc-d541859f-1 imUuxf')
+    rating = ratingSpan.get_text()
+
+    return rating
+
+def scrapeShowCreators(showId: str) -> list[str]:
+    url = f'https://www.imdb.com/title/{showId}'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        print("Rating - Cannot access url:" + url)
+        return
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    creatorsDiv = soup.find('div', class_='ipc-metadata-list-item__content-container')
+    creatorsList = creatorsDiv.find('ul')
+    creators = creatorsList.find_all('li')
+
+    list = []
+
+    for c in creators:
+        creatorElement = c.find('a', class_='ipc-metadata-list-item__list-content-item ipc-metadata-list-item__list-content-item--link')
+        list.append(creatorElement.get_text())
+
+    return list
+
+
 def printAList(l: list) -> None:
     for item in l:
         print(item)
+
+###########################################################
+## MAIN FUNCTION
+###########################################################
 
 if __name__ == "__main__":
     while True:
@@ -129,6 +220,9 @@ if __name__ == "__main__":
 
         if choice == "1":
             actorName = input("Enter a name: ")
+
+            print()
+
             actorId = getActorId(actorName)
             print("Actor ID:" + actorId)
 
@@ -154,7 +248,24 @@ if __name__ == "__main__":
             print()
         
         elif choice == "2":
-            pass
+            showTitle = input("Enter a title: ")
+
+            print()
+
+            showId = getShowId(showTitle)
+            print("Show / Movie ID:" + showId)
+
+            print()
+
+            rating = scrapeShowRating(showId)
+            print("Rating:", rating)
+
+            print()
+            creators = scrapeShowCreators(showId)
+            print("Creators:")
+            printAList(creators)
+
+            print()
         
         elif choice == "0":
             print("Thank you for using IMDB Scraper.")
